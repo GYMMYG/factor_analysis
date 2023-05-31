@@ -311,7 +311,7 @@ def short_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5, fee =
     high_prices = data.high.values
     exit_prices,exit_time = calculate_exit_prices_short(open_prices, high_prices, trs, delta_t,
                                         min_thre)
-    returns = (np.log(exit_prices / open_prices) - fee) * 100 
+    returns = (np.log(open_prices / exit_prices) - fee) * 100 
     exit_date = [data.index[i] for i in exit_time]
     return_df = pd.DataFrame()
     return_df['liqka_short_rtn(%)'] = returns
