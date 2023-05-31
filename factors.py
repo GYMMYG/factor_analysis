@@ -212,9 +212,9 @@ def rtn_shift(data: pd.Series, n):
 
 @njit
 def calculate_exit_prices_long(open_prices, low_prices, trs, delta_t,
-                               min_thre):
+                            min_thre):
     exit_prices = np.empty(len(open_prices))
-
+    exit_time = np.empty(len(open_prices))
     for i in range(len(open_prices)):
         liqka = 1.0
         lowafterentry = low_prices[i]
@@ -238,10 +238,12 @@ def calculate_exit_prices_long(open_prices, low_prices, trs, delta_t,
 
             j += 1
 
-    return exit_prices
+        exit_time[i] = j
+
+    return exit_prices,exit_time
 
 
-def long_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5):
+def long_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5, fee = 0):
     """
     用liqka计算多头收益率
     trs: 止损比例
@@ -252,15 +254,24 @@ def long_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5):
     """
     open_prices = data.open.values
     low_prices = data.low.values
-    exit_prices = calculate_exit_prices_long(open_prices, low_prices, trs,
-                                             delta_t, min_thre)
-    return (np.log(exit_prices / open_prices) - 2 / 10000) * 100  # 2/10000是手续费
+    exit_prices,exit_time = calculate_exit_prices_long(open_prices, low_prices, trs, delta_t,
+                                        min_thre)
+    returns = (np.log(exit_prices / open_prices) - fee) * 100 
+    exit_date = [data.index[i] for i in exit_time]
+    return_df = pd.DataFrame()
+    return_df['liqka_long_rtn(%)'] = returns
+    return_df['liqka_long_exit_dt'] = exit_date
+    return_df['liqka_long_exit_dt'] = pd.to_datetime(return_df['liqka_long_exit_dt'])
+    return_df.index = pd.to_datetime(data.index)
+    return_df.index.name = 'datetime'
+    return return_df
 
 
 @njit
-def calculate_exit_prices(open_prices, high_prices, trs, delta_t, min_thre):
+def calculate_exit_prices_short(open_prices, high_prices, trs, delta_t,
+                            min_thre):
     exit_prices = np.empty(len(open_prices))
-
+    exit_time = np.empty(len(open_prices))
     for i in range(len(open_prices)):
         liqka = 1.0
         highafterentry = high_prices[i]
@@ -283,24 +294,29 @@ def calculate_exit_prices(open_prices, high_prices, trs, delta_t, min_thre):
                 break
 
             j += 1
+        exit_time[i] = j
+    return exit_prices,exit_time
 
-    return exit_prices
 
-
-def short_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5):
+def short_liqka(data: pd.DataFrame, trs=0.03, delta_t=0.003, min_thre=0.5, fee = 0):
     """
-    用liqka模型计算空头止损的对数收益率
-
+    用liqka计算空头收益率
     trs: 止损比例
     delta_t: 每个tick的liqka减少量
     min_thre: 最小的liqka
-    用当期open作为买入价格, 通过之后的high大于止损价格时, 以max(下一期的open,止损价格)作为卖出价格
-    止损价格 = 入场后的close的最小价*(1+trs)*liqka
-    liqka = max(liqka - delta_t*期数, min_thre)
+    用当期的open价格卖出, 通过其后行情的high价格计算止损价格, 用止损价格买入, 计算收益率
 
     """
     open_prices = data.open.values
     high_prices = data.high.values
-    exit_prices = calculate_exit_prices(open_prices, high_prices, trs, delta_t,
+    exit_prices,exit_time = calculate_exit_prices_short(open_prices, high_prices, trs, delta_t,
                                         min_thre)
-    return (np.log(open_prices / exit_prices) - 2 / 10000) * 100  # 1/10000是手续费
+    returns = (np.log(exit_prices / open_prices) - fee) * 100 
+    exit_date = [data.index[i] for i in exit_time]
+    return_df = pd.DataFrame()
+    return_df['liqka_short_rtn(%)'] = returns
+    return_df['liqka_short_exit_dt'] = exit_date
+    return_df['liqka_short_exit_dt'] = pd.to_datetime(return_df['liqka_short_exit_dt'])
+    return_df.index = pd.to_datetime(data.index)
+    return_df.index.name = 'datetime'
+    return return_df
