@@ -274,7 +274,7 @@ def _cal_effective_period_acf(rank_df,
 
     for fac, rank, rtn in select_idx:
         cols = ["{}".format(fac), rtn]
-        query_df = rank_df[cols].query("{}== {} ".format(fac, rank))
+        query_df = rank_df[rank_df[fac] == rank][cols]
         rolling_mean = query_df[rtn].rolling(window=window).mean()
         # 计算自相关系数
         lag = 3000
