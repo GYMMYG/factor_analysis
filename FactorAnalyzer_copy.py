@@ -614,7 +614,7 @@ class RankFactorAnalyzer:
         self.data: pd.DataFrame = pd.concat([rank_factors, returns], axis=1,
                                             join="inner").dropna()
         self.rank_factors = self.data[[rank for rank in self.data.columns if "rank" in rank]]
-        self.returns = self.data[[rtn for rtn in self.data.columns if "rtn" in rtn or "exit" in rtn]]
+        self.returns = self.data[[rtn for rtn in self.data.columns if "rtn(%)" in rtn or "exit_dt" in rtn]]
 
     def cal_rank_results(
             self,
