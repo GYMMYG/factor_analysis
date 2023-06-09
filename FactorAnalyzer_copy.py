@@ -545,46 +545,71 @@ def _fig_to_base64(fig):  # 将图片转换为base64编码
     # Encode the binary image data as a base64 string
     b64data = base64.b64encode(imgdata.getvalue()).decode('utf-8')
     return b64data
+def annual_returns(returns):
+    days = (returns.index[-1] - returns.index[0]).days
+    annual_ret = returns.sum() / (days / 365)
+    return annual_ret
+def total_returns(returns):
+    return returns.sum()
+def annual_volatility(returns):
+    annual_vol = returns.std() * np.sqrt(252)
+    return annual_vol
+def sharpe_ratio(returns):
+    return (annual_returns(returns) - 0.03) / annual_volatility(returns)
+def max_drawdown(returns):
+    cum_rets = returns.cumsum()
+    cum_max = cum_rets.cummax()
+    drawdown = cum_rets - cum_max 
+    return drawdown.min()
+def calmar_ratio(returns):
+    return annual_returns(returns) / abs(max_drawdown(returns))
+def show_performance(returns,save = False,save_name = 'performance.html'):
+    returns = returns.resample('D').sum()
+    perf = {}
+    perf['annual_returns'] = annual_returns(returns)
+    perf['total_returns'] = total_returns(returns)
+    perf['annual_volatility'] = annual_volatility(returns)
+    perf['sharpe_ratio'] = sharpe_ratio(returns)
+    perf['max_drawdown'] = max_drawdown(returns)
+    perf['calmar_ratio'] = calmar_ratio(returns)
+    perf = pd.DataFrame(pd.Series(perf),columns=['Number'])
+    perf.index.name = 'indicator'
+    display(perf)
+    fig, axs = plt.subplots(2, 1, figsize=(16, 12), sharex=False)
+    # 设置第一个子图：累计收益
+    axs[0].plot(returns.cumsum(), color="#d62728")
+    axs[0].set_title(f'{returns.name}  cumsum returns', fontsize=16)
+    axs[0].grid(True, linestyle='--', alpha=0.5)
 
-def plot_by_pyfolio(returns,returns_mul = 1,if_save = False,save_name = None):
-    '''
-    summary:
-        将每分钟收益转化为每日收益率，在除以乘数后，利用pyfolio画图
-    parameter:
-        returns: 因子选择后的收益序列
-        returns_mul: 收益乘数(因为收益率在每分钟都进行了交易，所以乘以一个乘数，使得日收益率更加合理，乘数可以是交易的分钟数，使得最大仓位为1)
-        is_save: 是否保存图片
-        save_name: 保存图片的名称(包含路径，名称，后缀。默认为pyfolio_plot.html)
 
-    '''
-    if not isinstance(returns, pd.Series):
-        raise TypeError("returns should be pandas Series")
-    if not isinstance(returns.index, pd.core.indexes.datetimes.DatetimeIndex):
-        raise Exception("returns的index应设为\"DatetimeIndex\"")
-    if len(returns) < 1:
-        raise Exception("returns should have at least one row")
-    
-    returns = returns * (1 / returns_mul)
-    returns_day = returns.resample('D').sum()
-    # perf,draw_down,fig = pf.create_returns_tear_sheet(returns_day,benchmark_rets=None,return_fig=True)
-    perf,fig = pf.create_returns_tear_sheet(returns_day,benchmark_rets=None,return_fig=True)
-    if if_save:
-        # 将perf,draw_down,fig保存为html格式
-        if save_name is None:
-            save_name = 'pyfolio_plot.html'
-        perf = perf.to_html(float_format='{0:.2f}'.format)
-        # draw_down = draw_down.to_html(float_format='{0:.2f}'.format)
+    # 设置第二个子图：每日盈亏
+    axs[1].plot(returns, color="#FF6F61", linewidth=0.8)
+    axs[1].set_title(f'{returns.name}  daily returns', fontsize=16)
+    axs[1].grid(True, linestyle='--', alpha=0.5)
 
+    if save:
+        perf_ = perf.to_html(float_format='{0:.2f}'.format)
         html = '<h1 style="text-align:center">回测结果</h1>'
         # 添加表格, 放在中间
-        html += f'<table style="margin-left:auto;margin-right:auto;">{perf}</table>'
-        # html += f'<table style="margin-left:auto;margin-right:auto;">{draw_down}</table>'
-
+        html += f'<table style="margin-left:auto;margin-right:auto;">{perf_}</table>'
         # 添加图片,格式和表格一样
         html += f'<img src="data:image/png;base64,{_fig_to_base64(fig)}" style="margin-left:auto;margin-right:auto;">'
         with open(save_name, 'w') as f:
             f.write(html)
+    return perf
 
+def get_select_factor_list(select_df,num = 0,length = 3):
+    '''
+    summary:
+        得到每日因子选择的因子列表统计
+    parameter:
+        select_df: 每日因子选择结果
+        num: 选取排名第几的因子
+        length: 每天选取因子的总个数
+    '''
+    select_idx = select_df.iloc[num::length,].index
+    n = pd.DataFrame((select_idx.get_level_values(1)).tolist(),columns=['factors']).groupby('factors')['factors'].count().sort_values(ascending=False)
+    return n
         
 
 
