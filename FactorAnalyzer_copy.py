@@ -957,6 +957,8 @@ class RankFactorAnalyzer:
                              rolling_days: int = 5,
                              sort_by: str = "mean_rtn",
                              top_n=5,
+                             win_rate=0,
+                             rtn=-1,
                              count = 50,
                              save=False,
                              symbol=None):
@@ -1008,6 +1010,8 @@ class RankFactorAnalyzer:
                 rtn_df=_temp_rtns,
                 sort_by=sort_by,
                 top_n=top_n,
+                win_rate=win_rate,
+                rtn=rtn,
                 count=count,
                 show_result=False)
             _select_long = _select_long[:top_n]
